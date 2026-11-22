@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>판 글 목록 — 안 읽은 글만 모아 보기 (프로토타입)</title>
+<title>판 글 목록 — 안 읽은 글만 모아 보기 (프로토타입 v2)</title>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: "Malgun Gothic", "Apple SD Gothic Neo", sans-serif; background: #f4f5f7; color: #222; }
@@ -19,7 +19,8 @@
   .switch::after { content: ""; position: absolute; top: 3px; left: 3px; width: 22px; height: 22px; border-radius: 50%; background: #fff; transition: left .15s; }
   .toggle.on .switch { background: #e6002d; }
   .toggle.on .switch::after { left: 27px; }
-  .reset { font-size: 12px; color: #888; background: none; border: 1px solid #ddd; border-radius: 6px; padding: 5px 9px; cursor: pointer; }
+  .smallbtn { font-size: 12px; color: #555; background: #fff; border: 1px solid #ddd; border-radius: 6px; padding: 5px 9px; cursor: pointer; }
+  .smallbtn:hover { border-color: #bbb; }
   ul.posts { list-style: none; margin-top: 14px; background: #fff; border: 1px solid #e3e5e8; border-radius: 10px; overflow: hidden; }
   li.post { padding: 13px 16px; border-bottom: 1px solid #eef0f2; cursor: pointer; }
   li.post:last-child { border-bottom: none; }
@@ -27,14 +28,23 @@
   .row { display: flex; align-items: baseline; gap: 8px; }
   .dot { width: 8px; height: 8px; border-radius: 50%; background: #1a6de0; flex: none; position: relative; top: -1px; }
   li.read .dot { background: transparent; }
-  .title { font-size: 15px; font-weight: 700; }
+  .title { font-size: 15px; font-weight: 700; flex: 1; }
   li.read .title { font-weight: 400; color: #9aa0a6; }
   .badge { font-size: 11px; color: #9aa0a6; border: 1px solid #e0e2e5; border-radius: 4px; padding: 1px 5px; flex: none; }
   li:not(.read) .badge { display: none; }
+  .actbtn { font-size: 11px; color: #1a6de0; background: none; border: 1px solid #c8dcf7; border-radius: 4px; padding: 2px 7px; cursor: pointer; flex: none; }
+  .actbtn:hover { background: #eef4fd; }
   .meta { margin-top: 4px; font-size: 12px; color: #999; display: flex; gap: 10px; }
   .body { display: none; margin-top: 10px; font-size: 14px; line-height: 1.6; color: #444; background: #f8f9fa; border-radius: 8px; padding: 12px 14px; }
   li.open .body { display: block; }
   .empty { display: none; margin-top: 14px; background: #fff; border: 1px solid #e3e5e8; border-radius: 10px; padding: 34px 16px; text-align: center; color: #666; font-size: 15px; }
+  .panel { display: none; margin-top: 14px; background: #fff; border: 1px solid #e3e5e8; border-radius: 10px; padding: 16px; }
+  .panel.open { display: block; }
+  .panel h3 { font-size: 14px; margin-bottom: 8px; }
+  .panel p { font-size: 13px; color: #555; line-height: 1.6; margin-bottom: 10px; }
+  .panel textarea { width: 100%; min-height: 64px; border: 1px solid #ddd; border-radius: 8px; padding: 9px; font-size: 12px; font-family: monospace; resize: vertical; }
+  .panel .row2 { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+  .msg { font-size: 12px; color: #1a6de0; margin-top: 8px; min-height: 16px; }
   .note { margin-top: 14px; font-size: 12px; color: #999; line-height: 1.6; }
 </style>
 </head>
@@ -43,7 +53,7 @@
   <div class="logo">판</div>
   <div>
     <div style="font-weight:700;">글 목록</div>
-    <div class="sub">프로토타입 — “안 읽은 글만 모아 보기” 관객 요청 실현</div>
+    <div class="sub">프로토타입 v2 — “안 읽은 글만 모아 보기” 관객 요청 실현</div>
   </div>
 </header>
 <div class="wrap">
@@ -53,15 +63,29 @@
       <span>안 읽은 글만 보기</span>
       <span class="switch"></span>
     </label>
-    <button class="reset" id="resetBtn">읽음 기록 초기화</button>
+    <button class="smallbtn" id="transferBtn">읽음 기록 옮기기</button>
+    <button class="smallbtn" id="resetBtn">읽음 기록 초기화</button>
+  </div>
+
+  <div class="panel" id="transferPanel">
+    <h3>읽음 기록을 다른 기기로 옮기기</h3>
+    <p>계정 동기화 대신, 기록 코드를 만들어 다른 기기에서 붙여 넣는 방식입니다.
+    이 기기에서 코드를 만들고, 다른 기기에서 같은 칸에 붙여 넣은 뒤 “가져오기”를 누르세요.</p>
+    <textarea id="transferCode" placeholder="여기에 기록 코드가 나오고, 가져올 코드를 붙여 넣는 곳도 여기입니다."></textarea>
+    <div class="row2">
+      <button class="smallbtn" id="exportBtn">이 기기의 기록 코드 만들기</button>
+      <button class="smallbtn" id="importBtn">붙여 넣은 코드로 가져오기</button>
+    </div>
+    <div class="msg" id="transferMsg"></div>
   </div>
 
   <ul class="posts" id="postList"></ul>
   <div class="empty" id="emptyState">안 읽은 글이 없어요. 다 읽었습니다.</div>
 
   <p class="note">
-    사용법: 글을 누르면 본문이 열리고 그 순간 ‘읽음’으로 바뀝니다. “안 읽은 글만 보기”를 켜면 읽은 글은 목록에서 빠집니다.
-    읽음 기록은 이 브라우저에 저장돼서, 새로고침해도 유지됩니다.
+    사용법: 글을 누르면 본문이 열리고 그 순간 ‘읽음’으로 바뀝니다. 실수로 열었거나 다시 모아 보고 싶으면
+    글 오른쪽의 “안 읽음으로 되돌리기”를 누르세요. 읽음 상태는 글마다 직접 바꿀 수도 있습니다.
+    읽음 기록은 이 브라우저에 저장돼서 새로고침해도 유지되고, “읽음 기록 옮기기”로 다른 기기에 옮길 수 있습니다.
   </p>
 </div>
 
@@ -84,6 +108,7 @@
   var KEY = "pan-unread-proto-read-v1";
   var readSet = new Set(JSON.parse(localStorage.getItem(KEY) || "[]"));
   var unreadOnly = false;
+  var openId = null;
 
   var listEl = document.getElementById("postList");
   var emptyEl = document.getElementById("emptyState");
@@ -97,26 +122,27 @@
     countEl.textContent = POSTS.filter(function (p) { return !readSet.has(p.id); }).length;
     listEl.innerHTML = "";
     visible.forEach(function (p) {
+      var isRead = readSet.has(p.id);
       var li = document.createElement("li");
-      li.className = "post" + (readSet.has(p.id) ? " read" : "");
+      li.className = "post" + (isRead ? " read" : "") + (openId === p.id ? " open" : "");
       li.innerHTML =
-        '<div class="row"><span class="dot"></span><span class="title"></span><span class="badge">읽음</span></div>' +
+        '<div class="row"><span class="dot"></span><span class="title"></span><span class="badge">읽음</span>' +
+        '<button class="actbtn" type="button">' + (isRead ? "안 읽음으로 되돌리기" : "읽음으로 표시") + '</button></div>' +
         '<div class="meta"><span></span><span></span><span></span><span>조회 ' + p.views.toLocaleString() + '</span><span>댓글 ' + p.comments + '</span></div>' +
         '<div class="body"></div>';
       li.querySelector(".title").textContent = p.title;
       var meta = li.querySelectorAll(".meta span");
       meta[0].textContent = p.cat; meta[1].textContent = p.author; meta[2].textContent = p.time;
       li.querySelector(".body").textContent = p.body;
+      li.querySelector(".actbtn").addEventListener("click", function (e) {
+        e.stopPropagation();
+        if (readSet.has(p.id)) readSet.delete(p.id); else readSet.add(p.id);
+        save(); render();
+      });
       li.addEventListener("click", function () {
-        var wasOpen = li.classList.contains("open");
         if (!readSet.has(p.id)) { readSet.add(p.id); save(); }
+        openId = (openId === p.id) ? null : p.id;
         render();
-        var items = listEl.querySelectorAll("li.post");
-        if (!wasOpen) {
-          for (var i = 0; i < visible.length; i++) {
-            if (visible[i].id === p.id && items[i]) items[i].classList.add("open");
-          }
-        }
       });
       listEl.appendChild(li);
     });
@@ -130,9 +156,31 @@
     render();
   });
 
-  document.getElementById("resetBtn").addEventListener("click", function (e) {
-    e.stopPropagation();
-    readSet = new Set(); save(); render();
+  document.getElementById("resetBtn").addEventListener("click", function () {
+    readSet = new Set(); openId = null; save(); render();
+  });
+
+  var panel = document.getElementById("transferPanel");
+  var codeEl = document.getElementById("transferCode");
+  var msgEl = document.getElementById("transferMsg");
+  document.getElementById("transferBtn").addEventListener("click", function () {
+    panel.classList.toggle("open");
+  });
+  document.getElementById("exportBtn").addEventListener("click", function () {
+    var payload = JSON.stringify({ v: 2, read: Array.from(readSet) });
+    codeEl.value = btoa(unescape(encodeURIComponent(payload)));
+    msgEl.textContent = "기록 코드를 만들었습니다. 다른 기기에서 이 코드를 붙여 넣고 가져오기를 누르세요.";
+  });
+  document.getElementById("importBtn").addEventListener("click", function () {
+    try {
+      var payload = JSON.parse(decodeURIComponent(escape(atob(codeEl.value.trim()))));
+      if (!payload || !Array.isArray(payload.read)) throw new Error("bad");
+      readSet = new Set(payload.read.filter(function (n) { return typeof n === "number"; }));
+      save(); render();
+      msgEl.textContent = "읽음 기록을 가져왔습니다. 읽은 글 " + readSet.size + "개가 반영됐습니다.";
+    } catch (e) {
+      msgEl.textContent = "코드를 읽지 못했습니다. 복사한 코드가 맞는지 확인해 주세요.";
+    }
   });
 
   render();
