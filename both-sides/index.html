@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>판 논쟁 글, 양쪽 다 보기 (프로토타입)</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: "Malgun Gothic", "Apple SD Gothic Neo", sans-serif; background: #f2f3f5; color: #222; }
+  .topbar { background: #fff; border-bottom: 2px solid #d81e3c; padding: 10px 16px; display: flex; align-items: center; gap: 10px; }
+  .logo { color: #d81e3c; font-weight: 900; font-size: 20px; letter-spacing: -1px; }
+  .topbar .menu { color: #555; font-size: 13px; }
+  .wrap { max-width: 860px; margin: 0 auto; padding: 16px 12px 60px; }
+  .post { background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 20px; }
+  .post h1 { font-size: 20px; line-height: 1.4; margin-bottom: 8px; }
+  .meta { color: #888; font-size: 12px; margin-bottom: 14px; }
+  .post .body { font-size: 15px; line-height: 1.7; color: #333; white-space: pre-line; }
+  .toggle-row { background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 14px 20px; margin-top: 12px; display: flex; align-items: center; justify-content: space-between; }
+  .toggle-row .label { font-size: 15px; font-weight: 700; }
+  .toggle-row .desc { font-size: 12px; color: #888; margin-top: 2px; }
+  .switch { position: relative; width: 56px; height: 30px; flex: none; cursor: pointer; }
+  .switch input { display: none; }
+  .track { position: absolute; inset: 0; background: #ccc; border-radius: 999px; transition: .2s; }
+  .track::after { content: ""; position: absolute; top: 3px; left: 3px; width: 24px; height: 24px; background: #fff; border-radius: 50%; transition: .2s; }
+  .switch input:checked + .track { background: #d81e3c; }
+  .switch input:checked + .track::after { left: 29px; }
+  /* 댓글 뷰 */
+  .comments { margin-top: 12px; }
+  .comments h2 { font-size: 14px; margin: 4px 2px 8px; color: #444; }
+  .comment { background: #fff; border: 1px solid #e3e3e3; border-radius: 8px; padding: 12px 16px; margin-bottom: 8px; }
+  .comment .who { font-size: 12px; color: #888; margin-bottom: 4px; }
+  .comment .who b { color: #555; }
+  .comment .txt { font-size: 14px; line-height: 1.6; }
+  .comment .likes { font-size: 12px; color: #d81e3c; margin-top: 6px; }
+  /* 양쪽 다 보기 뷰 */
+  #bothView { display: none; margin-top: 12px; }
+  .statbar { background: #222; color: #fff; border-radius: 8px; padding: 14px 18px; font-size: 14px; line-height: 1.7; }
+  .statbar b { color: #ffb3c0; }
+  .ratiobar { display: flex; height: 10px; border-radius: 5px; overflow: hidden; margin-top: 8px; }
+  .ratiobar .with { background: #2e9e5b; }
+  .ratiobar .without { background: #b9bec6; }
+  .filters { margin: 12px 0; display: flex; gap: 8px; }
+  .filters button { border: 1px solid #bbb; background: #fff; border-radius: 999px; padding: 6px 14px; font-size: 13px; cursor: pointer; }
+  .filters button.on { background: #222; color: #fff; border-color: #222; }
+  .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  @media (max-width: 640px) { .cols { grid-template-columns: 1fr; } }
+  .col { border-radius: 8px; padding: 14px; }
+  .col.pro { background: #eef6ff; border: 1px solid #bcd6f5; }
+  .col.con { background: #fdf1f3; border: 1px solid #f3c3cc; }
+  .col h3 { font-size: 16px; margin-bottom: 10px; }
+  .claim { background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 12px 14px; margin-bottom: 8px; }
+  .claim .ctxt { font-size: 14px; line-height: 1.6; }
+  .claim .src { font-size: 12px; color: #888; margin-top: 4px; }
+  .badge { display: inline-block; font-size: 11px; font-weight: 700; border-radius: 4px; padding: 2px 7px; margin-top: 8px; }
+  .badge.has { background: #e2f4e9; color: #1d7a43; border: 1px solid #9fd8b4; }
+  .badge.none { background: #f0f0f0; color: #888; border: 1px solid #ccc; }
+  .claim a.ev { display: inline-block; margin-left: 6px; font-size: 12px; color: #1a5fb4; }
+  .claim.noev { opacity: .78; }
+  .note { font-size: 12px; color: #999; margin-top: 14px; line-height: 1.6; }
+</style>
+</head>
+<body>
+<div class="topbar"><span class="logo">판</span><span class="menu">톡톡 베스트 · 프로토타입 화면입니다</span></div>
+<div class="wrap">
+
+  <article class="post">
+    <h1>주 4일제, 우리 회사도 도입해야 할까요?</h1>
+    <div class="meta">글쓴이 직장인3년차 · 조회 48,213 · 추천 1,204 · 댓글 312</div>
+    <div class="body">회사에서 주 4일제 시범 도입 얘기가 나왔습니다.
+찬성하는 쪽은 쉬면 생산성이 오른다고 하고, 반대하는 쪽은 업무량은 그대로인데 요일만 줄면 야근만 는다고 합니다.
+댓글은 벌써 감정싸움이 됐네요. 다들 어떻게 생각하세요?</div>
+  </article>
+
+  <div class="toggle-row">
+    <div>
+      <div class="label">양쪽 다 보기</div>
+      <div class="desc">댓글의 감정 대립 대신, 주장과 근거만 뽑아 양쪽으로 나눠 봅니다</div>
+    </div>
+    <label class="switch">
+      <input type="checkbox" id="bothToggle">
+      <span class="track"></span>
+    </label>
+  </div>
+
+  <!-- 현행 구조: 추천순 댓글 -->
+  <section class="comments" id="commentView">
+    <h2>댓글 (추천순)</h2>
+    <div id="commentList"></div>
+    <p class="note">지금 판의 논쟁 글은 이 화면이 전부입니다. 추천 많은 감정 댓글이 맨 위에 고정되고, 근거 있는 글은 아래로 밀립니다.</p>
+  </section>
+
+  <!-- 양쪽 다 보기 -->
+  <section id="bothView">
+    <div class="statbar" id="statBar"></div>
+    <div class="filters">
+      <button data-f="all" class="on">전체 주장</button>
+      <button data-f="has">근거 있는 주장만</button>
+    </div>
+    <div class="cols">
+      <div class="col pro"><h3>찬성 근거</h3><div id="proList"></div></div>
+      <div class="col con"><h3>반대 근거</h3><div id="conList"></div></div>
+    </div>
+    <p class="note">정렬 기준: 근거 링크가 있는 주장을 위로, 그 안에서는 추천순. 근거 없는 주장은 숨기지 않고 "근거 없음"으로 표시해 아래에 둡니다. 어느 쪽이 맞는지 판이 정하지 않고, 근거의 양과 질은 읽는 사람이 판단합니다.</p>
+  </section>
+
+</div>
+
+<script>
+const CLAIMS = [
+  { side:"pro", who:"해외사례수집가", src:"댓글", likes: 842,
+    text:"아이슬란드 공공부문 주 4일제 실험에서 생산성이 떨어지지 않았고 오히려 오른 곳이 많았습니다. 참가자 번아웃도 줄었고요.",
+    ev:"아이슬란드 실험 결과 보고서", evUrl:"https://www.bbc.com/news/business-57724779" },
+  { side:"pro", who:"숫자로말해요", src:"댓글", likes: 655,
+    text:"영국 61개 기업 파일럿에서 참여 기업 매출이 평균 1.4% 늘고, 병가 일수는 65% 줄었습니다. 그래서 대부분 도입을 유지했어요.",
+    ev:"영국 주 4일제 파일럿 결과", evUrl:"https://www.4dayweek.com/uk-pilot-results" },
+  { side:"pro", who:"직장인3년차", src:"본문 댓글", likes: 388,
+    text:"마이크로소프트 일본은 주 4일제 한 달 실험에서 직원 1인당 생산성이 40% 올랐다고 발표했습니다.",
+    ev:"마이크로소프트 일본 발표", evUrl:"https://news.microsoft.com/ja-jp/2019/11/04/191104-wlc/" },
+  { side:"pro", who:"쉬고싶다진심", src:"댓글", likes: 1204,
+    text:"주 5일 내내 앉아 있어도 금요일 오후엔 다들 멍하니 있잖아요. 하루 쉬면 집중해서 일할 게 뻔합니다.",
+    ev:null },
+  { side:"pro", who:"육아병행중", src:"댓글", likes: 517,
+    text:"쉬는 날이 늘면 아이랑 보내는 시간이 생겨요. 삶의 질이 달라집니다.",
+    ev:null },
+  { side:"con", who:"자영업자K", src:"댓글", likes: 931,
+    text:"서비스업은 사람이 자리를 채워야 돌아갑니다. 통계청 자료 보면 숙박·음식점업 종사자가 전 산업에서 큰 비중인데, 이 업종은 요일을 줄이면 바로 인건비로 옵니다.",
+    ev:"통계청 경제활동인구조사", evUrl:"https://kostat.go.kr" },
+  { side:"con", who:"현장관리자", src:"댓글", likes: 764,
+    text:"고객사 대응이 생명인 업종은 거래처가 주 5일을 돌면 우리만 쉴 수 없습니다. 업종별 격차가 크다는 조사 결과가 있어요.",
+    ev:"업종별 주 4일제 인식 조사", evUrl:"https://www.4dayweek.com/research" },
+  { side:"con", who:"인사팀막내", src:"댓글", likes: 402,
+    text:"시범 도입한 회사 후기 보면 업무량 조정 없이 요일만 줄인 곳은 야근과 주말 근무가 늘었다는 사례가 나옵니다.",
+    ev:"국내 시범 도입 기업 사례 모음", evUrl:"https://www.4dayweek.com/research" },
+  { side:"con", who:"현실직시", src:"댓글", likes: 1087,
+    text:"결국 놀면서 월급 그대로 받겠다는 얘기 아닌가요? 세상에 공짜가 어딨습니까.",
+    ev:null },
+  { side:"con", who:"대기업다녀요", src:"댓글", likes: 689,
+    text:"우리 회사는 절대 안 됩니다. 윗선에서 검토조차 안 할 거예요.",
+    ev:null },
+];
+
+const commentList = document.getElementById('commentList');
+[...CLAIMS].sort((a,b)=>b.likes-a.likes).forEach(c=>{
+  const d = document.createElement('div');
+  d.className = 'comment';
+  d.innerHTML = `<div class="who"><b>${c.who}</b> · ${c.src}</div><div class="txt">${c.text}</div><div class="likes">추천 ${c.likes.toLocaleString()}</div>`;
+  commentList.appendChild(d);
+});
+
+function renderBoth(filter){
+  const has = CLAIMS.filter(c=>c.ev).length;
+  document.getElementById('statBar').innerHTML =
+    `이 글의 주장 <b>${CLAIMS.length}개</b> 중 근거 링크가 있는 주장은 <b>${has}개</b>, 없는 주장은 <b>${CLAIMS.length-has}개</b>입니다.` +
+    `<div class="ratiobar"><div class="with" style="width:${has/CLAIMS.length*100}%"></div><div class="without" style="width:${(CLAIMS.length-has)/CLAIMS.length*100}%"></div></div>`;
+  for (const side of ['pro','con']){
+    const box = document.getElementById(side+'List');
+    box.innerHTML = '';
+    CLAIMS.filter(c=>c.side===side)
+      .filter(c=> filter==='all' || c.ev)
+      .sort((a,b)=> (b.ev?1:0)-(a.ev?1:0) || b.likes-a.likes)
+      .forEach(c=>{
+        const d = document.createElement('div');
+        d.className = 'claim' + (c.ev ? '' : ' noev');
+        d.innerHTML = `<div class="ctxt">${c.text}</div><div class="src">${c.who} · ${c.src} · 추천 ${c.likes.toLocaleString()}</div>` +
+          (c.ev ? `<span class="badge has">근거 있음</span><a class="ev" href="${c.evUrl}" target="_blank" rel="noopener">${c.ev} ↗</a>`
+                : `<span class="badge none">근거 없음</span>`);
+        box.appendChild(d);
+      });
+    if (!box.children.length) box.innerHTML = '<p class="note">표시할 주장이 없습니다.</p>';
+  }
+}
+
+document.getElementById('bothToggle').addEventListener('change', e=>{
+  const on = e.target.checked;
+  document.getElementById('bothView').style.display = on ? 'block' : 'none';
+  document.getElementById('commentView').style.display = on ? 'none' : 'block';
+  if (on) renderBoth('all');
+});
+document.querySelectorAll('.filters button').forEach(b=>{
+  b.addEventListener('click', ()=>{
+    document.querySelectorAll('.filters button').forEach(x=>x.classList.remove('on'));
+    b.classList.add('on');
+    renderBoth(b.dataset.f);
+  });
+});
+</script>
+</body>
+</html>
