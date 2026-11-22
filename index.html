@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>판 글 목록 — 안 읽은 글만 모아 보기 (프로토타입)</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: "Malgun Gothic", "Apple SD Gothic Neo", sans-serif; background: #f4f5f7; color: #222; }
+  header { background: #fff; border-bottom: 2px solid #e6002d; padding: 14px 20px; display: flex; align-items: center; gap: 12px; }
+  header .logo { font-weight: 800; font-size: 20px; color: #e6002d; }
+  header .sub { color: #666; font-size: 13px; }
+  .wrap { max-width: 760px; margin: 0 auto; padding: 20px 16px 60px; }
+  .bar { background: #fff; border: 1px solid #e3e5e8; border-radius: 10px; padding: 14px 16px; display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+  .count { font-size: 15px; }
+  .count b { color: #e6002d; font-size: 18px; }
+  .toggle { display: flex; align-items: center; gap: 10px; cursor: pointer; user-select: none; font-size: 15px; font-weight: 700; }
+  .switch { width: 52px; height: 28px; border-radius: 14px; background: #c9ccd1; position: relative; transition: background .15s; flex: none; }
+  .switch::after { content: ""; position: absolute; top: 3px; left: 3px; width: 22px; height: 22px; border-radius: 50%; background: #fff; transition: left .15s; }
+  .toggle.on .switch { background: #e6002d; }
+  .toggle.on .switch::after { left: 27px; }
+  .reset { font-size: 12px; color: #888; background: none; border: 1px solid #ddd; border-radius: 6px; padding: 5px 9px; cursor: pointer; }
+  ul.posts { list-style: none; margin-top: 14px; background: #fff; border: 1px solid #e3e5e8; border-radius: 10px; overflow: hidden; }
+  li.post { padding: 13px 16px; border-bottom: 1px solid #eef0f2; cursor: pointer; }
+  li.post:last-child { border-bottom: none; }
+  li.post:hover { background: #fafbfc; }
+  .row { display: flex; align-items: baseline; gap: 8px; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: #1a6de0; flex: none; position: relative; top: -1px; }
+  li.read .dot { background: transparent; }
+  .title { font-size: 15px; font-weight: 700; }
+  li.read .title { font-weight: 400; color: #9aa0a6; }
+  .badge { font-size: 11px; color: #9aa0a6; border: 1px solid #e0e2e5; border-radius: 4px; padding: 1px 5px; flex: none; }
+  li:not(.read) .badge { display: none; }
+  .meta { margin-top: 4px; font-size: 12px; color: #999; display: flex; gap: 10px; }
+  .body { display: none; margin-top: 10px; font-size: 14px; line-height: 1.6; color: #444; background: #f8f9fa; border-radius: 8px; padding: 12px 14px; }
+  li.open .body { display: block; }
+  .empty { display: none; margin-top: 14px; background: #fff; border: 1px solid #e3e5e8; border-radius: 10px; padding: 34px 16px; text-align: center; color: #666; font-size: 15px; }
+  .note { margin-top: 14px; font-size: 12px; color: #999; line-height: 1.6; }
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">판</div>
+  <div>
+    <div style="font-weight:700;">글 목록</div>
+    <div class="sub">프로토타입 — “안 읽은 글만 모아 보기” 관객 요청 실현</div>
+  </div>
+</header>
+<div class="wrap">
+  <div class="bar">
+    <div class="count">안 읽은 글 <b id="unreadCount">0</b>개</div>
+    <label class="toggle" id="toggle">
+      <span>안 읽은 글만 보기</span>
+      <span class="switch"></span>
+    </label>
+    <button class="reset" id="resetBtn">읽음 기록 초기화</button>
+  </div>
+
+  <ul class="posts" id="postList"></ul>
+  <div class="empty" id="emptyState">안 읽은 글이 없어요. 다 읽었습니다.</div>
+
+  <p class="note">
+    사용법: 글을 누르면 본문이 열리고 그 순간 ‘읽음’으로 바뀝니다. “안 읽은 글만 보기”를 켜면 읽은 글은 목록에서 빠집니다.
+    읽음 기록은 이 브라우저에 저장돼서, 새로고침해도 유지됩니다.
+  </p>
+</div>
+
+<script>
+  var POSTS = [
+    { id: 1, cat: "사는 얘기", title: "이사 온 지 한 달, 동네에서 제일 잘한 선택", author: "동네형", time: "12분 전", views: 1284, comments: 23, body: "이사 오기 전에는 걱정만 많았는데, 막상 살아 보니 시장이 가깝고 버스도 자주 다녀서 생각보다 훨씬 편하네요. 동네 생활 정보는 역시 먼저 살아 본 사람들 얘기가 제일 정확합니다." },
+    { id: 2, cat: "고민상담", title: "이직 제안을 받았는데 지금 회사를 떠나도 될까요", author: "서른하나", time: "34분 전", views: 3421, comments: 87, body: "연봉은 오르는데 거리가 멀어지고, 지금 회사는 편한 대신 배울 게 줄었습니다. 비슷한 경험 있으신 분들, 어떤 기준으로 결정하셨나요." },
+    { id: 3, cat: "유머", title: "아빠가 처음 써 본 단체 채팅방 말투", author: "웃음배달", time: "1시간 전", views: 8932, comments: 154, body: "아빠가 가족 단체방에 처음 글을 남겼는데, 공지문 같은 말투라 다들 빵 터졌습니다. 그래도 그 뒤로는 이모티콘도 쓰시고 점점 늘고 계세요." },
+    { id: 4, cat: "사는 얘기", title: "자취 3년 차가 정리한 장보기 실패 목록", author: "혼밥장인", time: "1시간 전", views: 2210, comments: 41, body: "대용량을 싸다고 사면 결국 버리게 됩니다. 소분, 냉동, 유통기한 순서 정리 — 이 세 가지만 지켜도 음식물 쓰레기가 절반으로 줄어요." },
+    { id: 5, cat: "연애", title: "소개팅 세 번째 만남, 이 신호는 뭘까요", author: "두근두근", time: "2시간 전", views: 5120, comments: 203, body: "대화는 잘 통하는데 다음 약속을 먼저 잡지는 않네요. 제가 먼저 제안해도 되는지, 조금 더 기다리는 게 맞는지 궁금합니다." },
+    { id: 6, cat: "고민상담", title: "부모님 스마트폰 바꿔 드릴 때 꼭 확인할 것", author: "효도중", time: "2시간 전", views: 1876, comments: 35, body: "화면 글자 크기, 지문 인식, 은행 앱 이전까지 — 바꿔 드리고 나서야 알게 된 체크리스트를 정리해 봤습니다. 미리 알았으면 두 번 안 가도 됐을 것들이에요." },
+    { id: 7, cat: "사는 얘기", title: "출근길 지하철에서 매일 보는 풍경", author: "7호선", time: "3시간 전", views: 986, comments: 12, body: "같은 칸, 같은 자리에 앉는 사람들이 어느새 익숙한 얼굴이 됐습니다. 말 한 번 나눈 적 없는데 안 보이면 궁금해지는 사이, 출근길에만 있는 관계 같아요." },
+    { id: 8, cat: "유머", title: "회의록에 그대로 적힌 팀장님 명언 모음", author: "기록병", time: "3시간 전", views: 6543, comments: 98, body: "“일단 해 보고 안 되면 해 본 걸로 합시다.” 회의록에 적힌 그대로 옮겼습니다. 웃기면서도 묘하게 맞는 말들이 많아요." },
+    { id: 9, cat: "고민상담", title: "운동을 시작했는데 한 달째 변화가 없어요", author: "작심한달", time: "4시간 전", views: 2874, comments: 66, body: "주 3회씩 한 달을 했는데 몸무게도 그대로고 체력도 비슷한 것 같습니다. 원래 이 시기가 제일 고비라고 하던데, 다들 어떻게 넘기셨나요." },
+    { id: 10, cat: "사는 얘기", title: "오래된 앨범에서 찾은 부모님 젊은 시절 사진", author: "추억상자", time: "5시간 전", views: 4102, comments: 112, body: "청소하다 찾은 앨범에 지금의 저보다 어린 부모님이 있었습니다. 같은 나이였을 두 사람의 표정이 낯설고 뭉클해서 한참을 들여다봤어요." },
+    { id: 11, cat: "연애", title: "장거리 연애 2년, 우리가 정한 규칙 세 가지", author: "주말커플", time: "6시간 전", views: 3650, comments: 78, body: "매일 통화 대신 주 3회 길게, 서운한 건 그날 안에 말하기, 만남 비용은 공동 통장으로. 규칙을 정하고 나서 다툼이 확 줄었습니다." },
+    { id: 12, cat: "사는 얘기", title: "동네 빵집이 문 닫는다는 소식에 다녀왔습니다", author: "골목지기", time: "7시간 전", views: 1987, comments: 54, body: "20년 된 빵집이 이번 달까지만 한답니다. 마지막으로 단팥빵을 사 왔는데, 사장님이 이름을 기억해 주셔서 더 아쉬웠어요." }
+  ];
+
+  var KEY = "pan-unread-proto-read-v1";
+  var readSet = new Set(JSON.parse(localStorage.getItem(KEY) || "[]"));
+  var unreadOnly = false;
+
+  var listEl = document.getElementById("postList");
+  var emptyEl = document.getElementById("emptyState");
+  var countEl = document.getElementById("unreadCount");
+  var toggleEl = document.getElementById("toggle");
+
+  function save() { localStorage.setItem(KEY, JSON.stringify(Array.from(readSet))); }
+
+  function render() {
+    var visible = POSTS.filter(function (p) { return !unreadOnly || !readSet.has(p.id); });
+    countEl.textContent = POSTS.filter(function (p) { return !readSet.has(p.id); }).length;
+    listEl.innerHTML = "";
+    visible.forEach(function (p) {
+      var li = document.createElement("li");
+      li.className = "post" + (readSet.has(p.id) ? " read" : "");
+      li.innerHTML =
+        '<div class="row"><span class="dot"></span><span class="title"></span><span class="badge">읽음</span></div>' +
+        '<div class="meta"><span></span><span></span><span></span><span>조회 ' + p.views.toLocaleString() + '</span><span>댓글 ' + p.comments + '</span></div>' +
+        '<div class="body"></div>';
+      li.querySelector(".title").textContent = p.title;
+      var meta = li.querySelectorAll(".meta span");
+      meta[0].textContent = p.cat; meta[1].textContent = p.author; meta[2].textContent = p.time;
+      li.querySelector(".body").textContent = p.body;
+      li.addEventListener("click", function () {
+        var wasOpen = li.classList.contains("open");
+        if (!readSet.has(p.id)) { readSet.add(p.id); save(); }
+        render();
+        var items = listEl.querySelectorAll("li.post");
+        if (!wasOpen) {
+          for (var i = 0; i < visible.length; i++) {
+            if (visible[i].id === p.id && items[i]) items[i].classList.add("open");
+          }
+        }
+      });
+      listEl.appendChild(li);
+    });
+    emptyEl.style.display = visible.length === 0 ? "block" : "none";
+    listEl.style.display = visible.length === 0 ? "none" : "block";
+  }
+
+  toggleEl.addEventListener("click", function () {
+    unreadOnly = !unreadOnly;
+    toggleEl.classList.toggle("on", unreadOnly);
+    render();
+  });
+
+  document.getElementById("resetBtn").addEventListener("click", function (e) {
+    e.stopPropagation();
+    readSet = new Set(); save(); render();
+  });
+
+  render();
+</script>
+</body>
+</html>
