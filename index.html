@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>판 글 목록 — 안 읽은 글만 모아 보기 (프로토타입 v2)</title>
+<title>판 글 목록 — 안 읽은 글만 모아 보기 (프로토타입 v3)</title>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: "Malgun Gothic", "Apple SD Gothic Neo", sans-serif; background: #f4f5f7; color: #222; }
@@ -53,7 +53,7 @@
   <div class="logo">판</div>
   <div>
     <div style="font-weight:700;">글 목록</div>
-    <div class="sub">프로토타입 v2 — “안 읽은 글만 모아 보기” 관객 요청 실현</div>
+    <div class="sub">프로토타입 v3 — “안 읽은 글만 모아 보기” 관객 요청 실현</div>
   </div>
 </header>
 <div class="wrap">
@@ -69,11 +69,12 @@
 
   <div class="panel" id="transferPanel">
     <h3>읽음 기록을 다른 기기로 옮기기</h3>
-    <p>계정 동기화 대신, 기록 코드를 만들어 다른 기기에서 붙여 넣는 방식입니다.
-    이 기기에서 코드를 만들고, 다른 기기에서 같은 칸에 붙여 넣은 뒤 “가져오기”를 누르세요.</p>
-    <textarea id="transferCode" placeholder="여기에 기록 코드가 나오고, 가져올 코드를 붙여 넣는 곳도 여기입니다."></textarea>
+    <p>이어보기 링크를 만들면 읽음 기록이 링크에 담깁니다. 그 링크를 다른 기기에서 열면 읽음 상태가 그대로 이어집니다.
+    링크가 어려우면 기록 코드를 만들어 붙여 넣는 방식도 있습니다.</p>
+    <textarea id="transferCode" placeholder="여기에 이어보기 링크나 기록 코드가 나오고, 가져올 코드를 붙여 넣는 곳도 여기입니다."></textarea>
     <div class="row2">
-      <button class="smallbtn" id="exportBtn">이 기기의 기록 코드 만들기</button>
+      <button class="smallbtn" id="linkBtn">이어보기 링크 만들기</button>
+      <button class="smallbtn" id="exportBtn">기록 코드 만들기</button>
       <button class="smallbtn" id="importBtn">붙여 넣은 코드로 가져오기</button>
     </div>
     <div class="msg" id="transferMsg"></div>
@@ -85,7 +86,7 @@
   <p class="note">
     사용법: 글을 누르면 본문이 열리고 그 순간 ‘읽음’으로 바뀝니다. 실수로 열었거나 다시 모아 보고 싶으면
     글 오른쪽의 “안 읽음으로 되돌리기”를 누르세요. 읽음 상태는 글마다 직접 바꿀 수도 있습니다.
-    읽음 기록은 이 브라우저에 저장돼서 새로고침해도 유지되고, “읽음 기록 옮기기”로 다른 기기에 옮길 수 있습니다.
+    읽음 기록은 이 브라우저에 저장돼서 새로고침해도 유지되고, “읽음 기록 옮기기”에서 이어보기 링크를 만들면 다른 기기에서 열어서 그대로 이어 볼 수 있습니다.
   </p>
 </div>
 
@@ -166,22 +167,48 @@
   document.getElementById("transferBtn").addEventListener("click", function () {
     panel.classList.toggle("open");
   });
+  function encodeState() {
+    var payload = JSON.stringify({ v: 3, read: Array.from(readSet) });
+    return btoa(unescape(encodeURIComponent(payload)));
+  }
+  function decodeState(code) {
+    var payload = JSON.parse(decodeURIComponent(escape(atob(code))));
+    if (!payload || !Array.isArray(payload.read)) throw new Error("bad");
+    return new Set(payload.read.filter(function (n) { return typeof n === "number"; }));
+  }
+  document.getElementById("linkBtn").addEventListener("click", function () {
+    var url = location.href.split("#")[0] + "#read=" + encodeState();
+    codeEl.value = url;
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(url).catch(function () {});
+    }
+    msgEl.textContent = "이어보기 링크를 만들었습니다. 이 링크를 다른 기기에서 열면 읽음 상태가 그대로 이어집니다.";
+  });
   document.getElementById("exportBtn").addEventListener("click", function () {
-    var payload = JSON.stringify({ v: 2, read: Array.from(readSet) });
-    codeEl.value = btoa(unescape(encodeURIComponent(payload)));
+    codeEl.value = encodeState();
     msgEl.textContent = "기록 코드를 만들었습니다. 다른 기기에서 이 코드를 붙여 넣고 가져오기를 누르세요.";
   });
   document.getElementById("importBtn").addEventListener("click", function () {
     try {
-      var payload = JSON.parse(decodeURIComponent(escape(atob(codeEl.value.trim()))));
-      if (!payload || !Array.isArray(payload.read)) throw new Error("bad");
-      readSet = new Set(payload.read.filter(function (n) { return typeof n === "number"; }));
+      readSet = decodeState(codeEl.value.trim());
       save(); render();
       msgEl.textContent = "읽음 기록을 가져왔습니다. 읽은 글 " + readSet.size + "개가 반영됐습니다.";
     } catch (e) {
       msgEl.textContent = "코드를 읽지 못했습니다. 복사한 코드가 맞는지 확인해 주세요.";
     }
   });
+
+  if (location.hash.indexOf("#read=") === 0) {
+    try {
+      readSet = decodeState(location.hash.slice(6));
+      save();
+      panel.classList.add("open");
+      msgEl.textContent = "이어보기 링크로 열어서 읽음 기록을 이어받았습니다. 읽은 글 " + readSet.size + "개가 반영됐습니다.";
+      history.replaceState(null, "", location.href.split("#")[0]);
+    } catch (e) {
+      // 링크가 깨졌으면 그냥 기본 상태로 연다
+    }
+  }
 
   render();
 </script>
